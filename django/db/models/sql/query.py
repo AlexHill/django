@@ -18,7 +18,7 @@ from django.db.models.constants import LOOKUP_SEP
 from django.db.models.aggregates import refs_aggregate
 from django.db.models.expressions import ExpressionNode
 from django.db.models.fields import FieldDoesNotExist
-from django.db.models.query_utils import Q
+from django.db.models.query_utils import Q, InvalidQuery
 from django.db.models.related import PathInfo
 from django.db.models.sql import aggregates as base_aggregates_module
 from django.db.models.sql.constants import (QUERY_TERMS, ORDER_DIR, SINGLE,
@@ -89,20 +89,23 @@ class RawQuery(object):
         self.cursor.execute(self.sql, self.params)
 
     def as_nested_sql(self, connection):
-        qn2 = connection.ops.quote_name
-        quoted_column = qn2(self.pk_column) if self.pk_column else '*'
+        if not self.pk_column:
+            return self.sql, self.params
+        quoted_column = connection.ops.quote_name(self.pk_column)
         query_params = (quoted_column, self.sql, quoted_column)
-        return 'SELECT %s FROM (%s) WHERE %s IS NOT NULL' % query_params, self.params
+        return ('SELECT %s FROM (%s) WHERE %s IS NOT NULL' % query_params,
+                self.params)
 
     def as_subquery_condition(self, alias, columns, qn):
         connection = connections[self.using]
         qn2 = connection.ops.quote_name
-        # TODO: What about when len(columns) != 1?
         if len(columns) == 1:
             nested_sql, params = self.as_nested_sql(connection)
             query_params = (qn(alias), qn2(columns[0]), nested_sql)
             return '%s.%s IN (%s)' % query_params, params
-
+        # TODO: What about multi-column? When does this happen?
+        raise NotImplementedError(
+            "Can't use a raw query in a multi-column join")
 
 class Query(object):
     """
