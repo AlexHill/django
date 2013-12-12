@@ -14,6 +14,9 @@ from django.core.management.sql import custom_sql_for_model, emit_post_migrate_s
 from django.db import connections, router, transaction, models, DEFAULT_DB_ALIAS
 from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.loader import MigrationLoader, AmbiguityError
+from django.db.migrations.state import ProjectState
+from django.db.migrations.autodetector import MigrationAutodetector
+from django.db.models.loading import cache
 from django.utils.module_loading import module_has_submodule
 
 
@@ -58,6 +61,16 @@ class Command(BaseCommand):
 
         # Work out which apps have migrations and which do not
         executor = MigrationExecutor(connection, self.migration_progress_callback)
+
+        # Before anything else, see if there's conflicting apps and drop out
+        # hard if there are any
+        conflicts = executor.loader.detect_conflicts()
+        if conflicts:
+            name_str = "; ".join(
+                "%s in %s" % (", ".join(names), app)
+                for app, names in conflicts.items()
+            )
+            raise CommandError("Conflicting migrations detected (%s).\nTo fix them run 'python manage.py makemigrations --merge'" % name_str)
 
         # If they supplied command line arguments, work out what they mean.
         run_syncdb = False
@@ -120,6 +133,15 @@ class Command(BaseCommand):
         if not plan:
             if self.verbosity >= 1:
                 self.stdout.write("  No migrations needed.")
+                # If there's changes that aren't in migrations yet, tell them how to fix it.
+                autodetector = MigrationAutodetector(
+                    executor.loader.graph.project_state(),
+                    ProjectState.from_app_cache(cache),
+                )
+                changes = autodetector.changes(graph=executor.loader.graph)
+                if changes:
+                    self.stdout.write(self.style.NOTICE("  Your models have changes that are not yet reflected in a migration, and so won't be applied."))
+                    self.stdout.write(self.style.NOTICE("  Run 'manage.py makemigrations' to make new migrations, and then re-run 'manage.py migrate' to apply them."))
         else:
             executor.migrate(targets, plan, fake=options.get("fake", False))
 

@@ -30,7 +30,7 @@ checkbox = forms.CheckboxInput({'class': 'action-select'}, lambda value: False)
 
 class AdminForm(object):
     def __init__(self, form, fieldsets, prepopulated_fields, readonly_fields=None, model_admin=None):
-        self.form, self.fieldsets = form, normalize_fieldsets(fieldsets)
+        self.form, self.fieldsets = form, fieldsets
         self.prepopulated_fields = [{
             'field': form[field_name],
             'dependencies': [form[f] for f in dependencies]
@@ -42,7 +42,8 @@ class AdminForm(object):
 
     def __iter__(self):
         for name, options in self.fieldsets:
-            yield Fieldset(self.form, name,
+            yield Fieldset(
+                self.form, name,
                 readonly_fields=self.readonly_fields,
                 model_admin=self.model_admin,
                 **options
@@ -334,26 +335,3 @@ class AdminErrorList(forms.utils.ErrorList):
                 self.extend(inline_formset.non_form_errors())
                 for errors_in_inline_form in inline_formset.errors:
                     self.extend(list(six.itervalues(errors_in_inline_form)))
-
-
-def normalize_fieldsets(fieldsets):
-    """
-    Make sure the keys in fieldset dictionaries are strings. Returns the
-    normalized data.
-    """
-    result = []
-    for name, options in fieldsets:
-        result.append((name, normalize_dictionary(options)))
-    return result
-
-
-def normalize_dictionary(data_dict):
-    """
-    Converts all the keys in "data_dict" to strings. The keys must be
-    convertible using str().
-    """
-    for key, value in data_dict.items():
-        if not isinstance(key, str):
-            del data_dict[key]
-            data_dict[str(key)] = value
-    return data_dict

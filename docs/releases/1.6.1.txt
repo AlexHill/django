@@ -22,10 +22,14 @@ Bug fixes
   raised an error (#21439).
 * Fixed a regression that prevented editable ``GenericRelation`` subclasses
   from working in ``ModelForms``.
+* Added missing ``to_python`` method for ``ModelMultipleChoiceField`` which
+  is required in Django 1.6 to properly detect changes from initial values
+  (#21568).
 * Fixed ``django.contrib.humanize`` translations where the unicode sequence
   for the non-breaking space was returned verbatim (#21415).
 * Fixed :djadmin:`loaddata` error when fixture file name contained any dots
-  non related to file extensions (#21457).
+  non related to file extensions (#21457) or when fixture path was relative
+  but located in a subdirectory (#21551).
 * Fixed display of inline instances in formsets when parent has 0 for primary
   key (#21472).
 * Fixed a regression where custom querysets for foreign keys were overwritten
@@ -40,3 +44,8 @@ Bug fixes
 * Fixed test client ``logout()`` method when using the cookie-based session
   backend (#21448).
 * Fixed a crash when a ``GeometryField`` uses a non-geometric widget (#21496).
+* Fixed password hash upgrade when changing the iteration count (#21535).
+* Fixed a bug in the debug view when the urlconf only contains one element
+  (#21530).
+* Re-added missing search result count and reset link in changelist admin view
+  (#21510).

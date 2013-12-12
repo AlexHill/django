@@ -375,6 +375,11 @@ Internationalization
   in the corresponding entry in the PO file, which makes the translation
   process easier.
 
+* When you run :djadmin:`makemessages` from the root directory of your project,
+  any extracted strings will now be automatically distributed to the proper
+  app or project message file. See :ref:`how-to-create-language-files` for
+  details.
+
 Management Commands
 ^^^^^^^^^^^^^^^^^^^
 
@@ -409,6 +414,9 @@ Management Commands
 
   * All HTTP requests are logged to the console, including requests for static
     files or ``favicon.ico`` that used to be filtered out.
+
+* Management commands can now produce syntax colored output under Windows if
+  the ANSICON third-party tool is installed and active.
 
 Models
 ^^^^^^
@@ -705,6 +713,9 @@ Miscellaneous
   ``select_related('foo').select_related('bar')``. Previously the latter would
   have been equivalent to ``select_related('bar')``.
 
+* :meth:`~django.test.TransactionTestCase.assertNumQueries` now prints
+  out the list of executed queries if the assertion fails.
+
 Features deprecated in 1.7
 ==========================
 
@@ -846,3 +857,9 @@ The function ``memoize`` is deprecated and should be replaced by the
 Django ships a backport of this decorator for older Python versions and it's
 available at ``django.utils.lru_cache.lru_cache``. The deprecated function will
 be removed in Django 1.9.
+
+Geo Sitemaps
+~~~~~~~~~~~~
+
+Google has retired support for the Geo Sitemaps format. Hence Django support
+for Geo Sitemaps is deprecated and will be removed in Django 1.8.

@@ -230,6 +230,8 @@ class Field(object):
             path = path.replace("django.db.models.fields.related", "django.db.models")
         if path.startswith("django.db.models.fields.files"):
             path = path.replace("django.db.models.fields.files", "django.db.models")
+        if path.startswith("django.db.models.fields.proxy"):
+            path = path.replace("django.db.models.fields.proxy", "django.db.models")
         if path.startswith("django.db.models.fields"):
             path = path.replace("django.db.models.fields", "django.db.models")
         # Return basic info - other fields should override this.
@@ -239,6 +241,14 @@ class Field(object):
             [],
             keywords,
         )
+
+    def clone(self):
+        """
+        Uses deconstruct() to clone a new copy of this Field.
+        Will not preserve any class attachments/attribute names.
+        """
+        name, path, args, kwargs = self.deconstruct()
+        return self.__class__(*args, **kwargs)
 
     def __eq__(self, other):
         # Needed for @total_ordering
@@ -1676,8 +1686,7 @@ class BinaryField(Field):
         return default
 
     def get_db_prep_value(self, value, connection, prepared=False):
-        value = super(BinaryField, self
-            ).get_db_prep_value(value, connection, prepared)
+        value = super(BinaryField, self).get_db_prep_value(value, connection, prepared)
         if value is not None:
             return connection.Database.Binary(value)
         return value

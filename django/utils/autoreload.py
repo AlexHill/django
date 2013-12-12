@@ -82,7 +82,7 @@ try:
     import subprocess
     command = ["sysctl", "-n", "kern.maxfilesperproc"]
     NOFILES_KERN = int(subprocess.check_output(command).strip())
-except (AttributeError, OSError):
+except Exception:
     USE_KQUEUE = False
 
 RUN_RELOADER = True
@@ -172,7 +172,7 @@ def kqueue_code_changed():
 
     # Utility function to create kevents.
     _filter = select.KQ_FILTER_VNODE
-    flags = select.KQ_EV_ADD
+    flags = select.KQ_EV_ADD | select.KQ_EV_CLEAR
     fflags = select.KQ_NOTE_DELETE | select.KQ_NOTE_WRITE | select.KQ_NOTE_RENAME
 
     def make_kevent(descriptor):

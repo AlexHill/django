@@ -156,6 +156,16 @@ class SingleRelatedObjectDescriptor(six.with_metaclass(RenameRelatedObjectDescri
         self.related = related
         self.cache_name = related.get_cache_name()
 
+    @cached_property
+    def RelatedObjectDoesNotExist(self):
+        # The exception isn't created at initialization time for the sake of
+        # consistency with `ReverseSingleRelatedObjectDescriptor`.
+        return type(
+            str('RelatedObjectDoesNotExist'),
+            (self.related.model.DoesNotExist, AttributeError),
+            {}
+        )
+
     def is_cached(self, instance):
         return hasattr(instance, self.cache_name)
 
@@ -200,9 +210,12 @@ class SingleRelatedObjectDescriptor(six.with_metaclass(RenameRelatedObjectDescri
                     setattr(rel_obj, self.related.field.get_cache_name(), instance)
             setattr(instance, self.cache_name, rel_obj)
         if rel_obj is None:
-            raise self.related.model.DoesNotExist("%s has no %s." % (
-                                                  instance.__class__.__name__,
-                                                  self.related.get_accessor_name()))
+            raise self.RelatedObjectDoesNotExist(
+                "%s has no %s." % (
+                    instance.__class__.__name__,
+                    self.related.get_accessor_name()
+                )
+            )
         else:
             return rel_obj
 
@@ -254,6 +267,17 @@ class ReverseSingleRelatedObjectDescriptor(six.with_metaclass(RenameRelatedObjec
     def __init__(self, field_with_rel):
         self.field = field_with_rel
         self.cache_name = self.field.get_cache_name()
+
+    @cached_property
+    def RelatedObjectDoesNotExist(self):
+        # The exception can't be created at initialization time since the
+        # related model might not be resolved yet; `rel.to` might still be
+        # a string model reference.
+        return type(
+            str('RelatedObjectDoesNotExist'),
+            (self.field.rel.to.DoesNotExist, AttributeError),
+            {}
+        )
 
     def is_cached(self, instance):
         return hasattr(instance, self.cache_name)
@@ -321,8 +345,9 @@ class ReverseSingleRelatedObjectDescriptor(six.with_metaclass(RenameRelatedObjec
                     setattr(rel_obj, self.field.related.get_cache_name(), instance)
             setattr(instance, self.cache_name, rel_obj)
         if rel_obj is None and not self.field.null:
-            raise self.field.rel.to.DoesNotExist(
-                "%s has no %s." % (self.field.model.__name__, self.field.name))
+            raise self.RelatedObjectDoesNotExist(
+                "%s has no %s." % (self.field.model.__name__, self.field.name)
+            )
         else:
             return rel_obj
 
@@ -963,8 +988,7 @@ class OneToOneRel(ManyToOneRel):
                  parent_link=False, on_delete=None, related_query_name=None):
         super(OneToOneRel, self).__init__(field, to, field_name,
                 related_name=related_name, limit_choices_to=limit_choices_to,
-                parent_link=parent_link, on_delete=on_delete, related_query_name=related_query_name,
-        )
+                parent_link=parent_link, on_delete=on_delete, related_query_name=related_query_name)
         self.multiple = False
 
 
@@ -1018,6 +1042,16 @@ class ForeignObject(RelatedField):
         kwargs['verbose_name'] = kwargs.get('verbose_name', None)
 
         super(ForeignObject, self).__init__(**kwargs)
+
+    def deconstruct(self):
+        name, path, args, kwargs = super(ForeignObject, self).deconstruct()
+        kwargs['from_fields'] = self.from_fields
+        kwargs['to_fields'] = self.to_fields
+        if isinstance(self.rel.to, six.string_types):
+            kwargs['to'] = self.rel.to
+        else:
+            kwargs['to'] = "%s.%s" % (self.rel.to._meta.app_label, self.rel.to._meta.object_name)
+        return name, path, args, kwargs
 
     def resolve_related_fields(self):
         if len(self.from_fields) < 1 or len(self.from_fields) != len(self.to_fields):
@@ -1243,6 +1277,8 @@ class ForeignKey(ForeignObject):
 
     def deconstruct(self):
         name, path, args, kwargs = super(ForeignKey, self).deconstruct()
+        del kwargs['to_fields']
+        del kwargs['from_fields']
         # Handle the simpler arguments
         if self.db_index:
             del kwargs['db_index']
@@ -1255,10 +1291,6 @@ class ForeignKey(ForeignObject):
         # Rel needs more work.
         if self.rel.field_name:
             kwargs['to_field'] = self.rel.field_name
-        if isinstance(self.rel.to, six.string_types):
-            kwargs['to'] = self.rel.to
-        else:
-            kwargs['to'] = "%s.%s" % (self.rel.to._meta.app_label, self.rel.to._meta.object_name)
         return name, path, args, kwargs
 
     @property
@@ -1476,7 +1508,7 @@ class ManyToManyField(RelatedField):
         name, path, args, kwargs = super(ManyToManyField, self).deconstruct()
         # Handle the simpler arguments
         if self.rel.db_constraint is not True:
-            kwargs['db_constraint'] = self.db_constraint
+            kwargs['db_constraint'] = self.rel.db_constraint
         if "help_text" in kwargs:
             del kwargs['help_text']
         # Rel needs more work.
