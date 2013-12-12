@@ -247,13 +247,6 @@ class RawQueryTests(TestCase):
             raw_qs = Author.objects.raw("SELECT * FROM raw_query_author")
             books = list(Book.objects.filter(author__in=list(raw_qs)))
 
-    def test_subquery_pk(self):
-        raw_qs = Author.objects.raw("SELECT * FROM raw_query_author WHERE id < 3")
-        self.assertQuerysetEqual(Author.objects.filter(pk__in=raw_qs),
-                                 Author.objects.filter(pk__in=list(raw_qs)),
-                                 transform=lambda i: i,
-                                 ordered=False)
-
     def test_subquery_foreignkey(self):
         raw_qs = Author.objects.raw("SELECT * FROM raw_query_author WHERE id < 3")
         self.assertQuerysetEqual(Book.objects.filter(author__in=raw_qs),
@@ -265,19 +258,5 @@ class RawQueryTests(TestCase):
         raw_qs = Author.objects.raw("SELECT * FROM raw_query_author WHERE id < 3")
         self.assertQuerysetEqual(Book.objects.exclude(author__in=raw_qs),
                                  Book.objects.exclude(author__in=list(raw_qs)),
-                                 transform=lambda i: i,
-                                 ordered=False)
-
-    def test_nonraw_subquery_pk(self):
-        qs = Author.objects.filter(id__lt=3)
-        self.assertQuerysetEqual(Author.objects.filter(pk__in=qs),
-                                 Author.objects.filter(pk__in=list(qs)),
-                                 transform=lambda i: i,
-                                 ordered=False)
-
-    def test_nonraw_subquery_foreignkey(self):
-        qs = Author.objects.filter(id__lt=3)
-        self.assertQuerysetEqual(Book.objects.filter(author__in=qs),
-                                 Book.objects.filter(author__in=list(qs)),
                                  transform=lambda i: i,
                                  ordered=False)

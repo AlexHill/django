@@ -37,11 +37,12 @@ class RawQuery(object):
     A single raw SQL query
     """
 
-    def __init__(self, sql, using, params=None):
+    def __init__(self, sql, using, params=None, pk_column=None):
         self.params = params or ()
         self.sql = sql
         self.using = using
         self.cursor = None
+        self.pk_column = pk_column
 
         # Mirror some properties of a normal query so that
         # the compiler can be used to process results.
@@ -86,6 +87,14 @@ class RawQuery(object):
     def _execute_query(self):
         self.cursor = connections[self.using].cursor()
         self.cursor.execute(self.sql, self.params)
+
+    def as_subquery_condition(self, alias, columns, qn):
+        qn2 = connections[self.using].ops.quote_name
+        if len(columns) == 1:
+            query_params = (qn(alias), qn2(columns[0]),
+                            qn2(self.pk_column) if self.pk_column else '*',
+                            self.sql)
+            return '%s.%s IN (SELECT %s FROM (%s))' % query_params, self.params
 
 
 class Query(object):

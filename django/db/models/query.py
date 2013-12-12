@@ -1499,7 +1499,9 @@ class RawQuerySet(object):
         self.model = model
         self._db = using
         self._hints = hints or {}
-        self.query = query or sql.RawQuery(sql=raw_query, using=self.db, params=params)
+        self.query = query or sql.RawQuery(
+            sql=raw_query, using=self.db,
+            params=params, pk_column=model._meta.pk.column)
         self.params = params or ()
         self.translations = translations or {}
 
@@ -1625,6 +1627,14 @@ class RawQuerySet(object):
                 name, column = field.get_attname_column()
                 self._model_fields[converter(column)] = field
         return self._model_fields
+
+    def _as_sql(self, connection):
+        """
+        Returns the internal query's SQL and parameters (as a tuple).
+        """
+        if self._db is None or connection == connections[self._db]:
+            return self.query.sql, self.query.params
+        raise ValueError("Can't do subqueries with queries on different DBs.")
 
 
 class Prefetch(object):

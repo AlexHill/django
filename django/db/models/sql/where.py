@@ -394,6 +394,7 @@ class SubqueryConstraint(object):
         self.columns = columns
         self.targets = targets
         self.query_object = query_object
+        print(query_object, type(query_object))
 
     def as_sql(self, qn, connection):
         query = self.query_object
@@ -410,8 +411,15 @@ class SubqueryConstraint(object):
             query = query.query
             query.clear_ordering(True)
 
-        query_compiler = query.get_compiler(connection=connection)
-        return query_compiler.as_subquery_condition(self.alias, self.columns, qn)
+        # RawQuerySet was sent
+        if hasattr(query, 'raw_query'):
+            if query._db and connection.alias != query._db:
+                raise ValueError("Can't do subqueries with queries on different DBs.")
+            query = query.query
+
+        if not hasattr(query, 'as_subquery_condition'):
+            query = query.get_compiler(connection=connection)
+        return query.as_subquery_condition(self.alias, self.columns, qn)
 
     def relabel_aliases(self, change_map):
         self.alias = change_map.get(self.alias, self.alias)
