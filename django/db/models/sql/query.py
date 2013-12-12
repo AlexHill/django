@@ -88,13 +88,20 @@ class RawQuery(object):
         self.cursor = connections[self.using].cursor()
         self.cursor.execute(self.sql, self.params)
 
+    def as_nested_sql(self, connection):
+        qn2 = connection.ops.quote_name
+        quoted_column = qn2(self.pk_column) if self.pk_column else '*'
+        query_params = (quoted_column, self.sql, quoted_column)
+        return 'SELECT %s FROM (%s) WHERE %s IS NOT NULL' % query_params, self.params
+
     def as_subquery_condition(self, alias, columns, qn):
-        qn2 = connections[self.using].ops.quote_name
+        connection = connections[self.using]
+        qn2 = connection.ops.quote_name
+        # TODO: What about when len(columns) != 1?
         if len(columns) == 1:
-            query_params = (qn(alias), qn2(columns[0]),
-                            qn2(self.pk_column) if self.pk_column else '*',
-                            self.sql)
-            return '%s.%s IN (SELECT %s FROM (%s))' % query_params, self.params
+            nested_sql, params = self.as_nested_sql(connection)
+            query_params = (qn(alias), qn2(columns[0]), nested_sql)
+            return '%s.%s IN (%s)' % query_params, params
 
 
 class Query(object):

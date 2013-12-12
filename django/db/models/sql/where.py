@@ -394,7 +394,6 @@ class SubqueryConstraint(object):
         self.columns = columns
         self.targets = targets
         self.query_object = query_object
-        print(query_object, type(query_object))
 
     def as_sql(self, qn, connection):
         query = self.query_object

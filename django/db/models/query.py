@@ -1628,12 +1628,15 @@ class RawQuerySet(object):
                 self._model_fields[converter(column)] = field
         return self._model_fields
 
+    def _prepare(self):
+        return self
+
     def _as_sql(self, connection):
         """
         Returns the internal query's SQL and parameters (as a tuple).
         """
         if self._db is None or connection == connections[self._db]:
-            return self.query.sql, self.query.params
+            return self.query.as_nested_sql(connection=connection)
         raise ValueError("Can't do subqueries with queries on different DBs.")
 
 
