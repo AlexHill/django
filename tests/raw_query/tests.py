@@ -239,42 +239,37 @@ class RawQueryTests(TestCase):
     def test_subquery_count(self):
         # RawQuerySets passed as parameter to __in filters should be embedded
         # as a subquery, not evaluated
-        with self.assertNumQueries(1):
-            raw_qs = Author.objects.raw("SELECT * FROM raw_query_author")
-            books = list(Book.objects.filter(author__in=raw_qs))
-
+        raw_qs = Author.objects.raw("SELECT * FROM raw_query_author")
+        self.assertNumQueries(1, list, Book.objects.filter(author__in=raw_qs))
+        self.assertNumQueries(1, list, Author.objects.filter(pk__in=raw_qs))
         with self.assertNumQueries(2):
-            raw_qs = Author.objects.raw("SELECT * FROM raw_query_author")
-            books = list(Book.objects.filter(author__in=list(raw_qs)))
+            list(Book.objects.filter(author__in=list(raw_qs)))
 
     def test_subquery_pk(self):
         raw_qs = Author.objects.raw("SELECT * FROM raw_query_author WHERE id < 3")
         qs = Author.objects.filter(id__lt=3)
         self.assertQuerysetEqual(Author.objects.filter(pk__in=qs),
                                  Author.objects.filter(pk__in=raw_qs),
-                                 transform=lambda i: i,
-                                 ordered=False)
+                                 transform=lambda i: i, ordered=False)
 
     def test_subquery_foreignkey(self):
         raw_qs = Author.objects.raw("SELECT * FROM raw_query_author WHERE id < 3")
         self.assertQuerysetEqual(Book.objects.filter(author__in=raw_qs),
                                  Book.objects.filter(author__in=list(raw_qs)),
-                                 transform=lambda i: i,
-                                 ordered=False)
+                                 transform=lambda i: i, ordered=False)
+
         qs = Author.objects.filter(id__lt=3)
         self.assertQuerysetEqual(Book.objects.filter(author__in=raw_qs),
                                  Book.objects.filter(author__in=qs),
-                                 transform=lambda i: i,
-                                 ordered=False)
+                                 transform=lambda i: i, ordered=False)
 
     def test_subquery_exclude(self):
         raw_qs = Author.objects.raw("SELECT * FROM raw_query_author WHERE id < 3")
         self.assertQuerysetEqual(Book.objects.exclude(author__in=raw_qs),
                                  Book.objects.exclude(author__in=list(raw_qs)),
-                                 transform=lambda i: i,
-                                 ordered=False)
+                                 transform=lambda i: i, ordered=False)
+
         qs = Author.objects.filter(id__lt=3)
         self.assertQuerysetEqual(Book.objects.exclude(author__in=raw_qs),
                                  Book.objects.exclude(author__in=qs),
-                                 transform=lambda i: i,
-                                 ordered=False)
+                                 transform=lambda i: i, ordered=False)
