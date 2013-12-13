@@ -92,8 +92,8 @@ class RawQuery(object):
         if not self.pk_column:
             return self.sql, self.params
         quoted_column = connection.ops.quote_name(self.pk_column)
-        query_params = (quoted_column, self.sql, quoted_column)
-        return ('SELECT %s FROM (%s) WHERE %s IS NOT NULL' % query_params,
+        sql_params = (quoted_column, self.sql, quoted_column)
+        return ('SELECT sq.%s FROM (%s) sq WHERE %s IS NOT NULL' % sql_params,
                 self.params)
 
     def as_subquery_condition(self, alias, columns, qn):
