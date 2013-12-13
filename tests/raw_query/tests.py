@@ -245,6 +245,20 @@ class RawQueryTests(TestCase):
         with self.assertNumQueries(2):
             list(Book.objects.filter(author__in=list(raw_qs)))
 
+    def test_subquery_only(self):
+        raw_qs = Book.objects.raw('SELECT * FROM raw_query_book WHERE paperback')
+        self.assertQuerysetEqual(raw_qs.only('author_id'), raw_qs,
+                                 transform=lambda i: i, ordered=False)
+
+        with self.assertNumQueries(2):
+            raw_qs.only('author_id')[0].paperback
+
+    def test_subquery_only_in(self):
+        raw_qs = Book.objects.raw('SELECT * FROM raw_query_book WHERE paperback')
+        self.assertQuerysetEqual(Author.objects.filter(pk__in=raw_qs.only('author_id')),
+                                 Author.objects.filter(book__paperback=True).distinct(),
+                                 transform=lambda i: i, ordered=False)
+
     def test_subquery_pk(self):
         raw_qs = Author.objects.raw("SELECT * FROM raw_query_author WHERE id < 3")
         qs = Author.objects.filter(id__lt=3)

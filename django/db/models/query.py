@@ -1628,6 +1628,17 @@ class RawQuerySet(object):
                 self._model_fields[converter(column)] = field
         return self._model_fields
 
+    def _clone(self):
+        return RawQuerySet(self.raw_query, model=self.model,
+                           query=self.query.clone(self.query.using),
+                           params=self.params, translations=self.translations,
+                           using=self._db)
+
+    def only(self, *fields):
+        only_qs = self._clone()
+        only_qs.query.set_immediate_columns(fields)
+        return only_qs
+
     def _prepare(self):
         return self
 
