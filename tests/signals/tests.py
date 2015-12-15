@@ -268,8 +268,8 @@ class LazyModelRefTest(BaseSignalTest):
 
     def test_invalid_sender_model_name(self):
         with self.assertRaisesMessage(ValueError,
-                    "Specified sender must either be a model or a "
-                    "model name of the 'app_label.ModelName' form."):
+                "Invalid model reference 'invalid'. String model "
+                "references must be of the form 'app_label.ModelName'."):
             signals.post_init.connect(self.receiver, sender='invalid')
 
     def test_already_loaded_model(self):

@@ -418,20 +418,23 @@ class GenericRelation(ForeignObject):
         self.model = cls
         setattr(cls, self.name, ReverseGenericManyToOneDescriptor(self.remote_field))
 
-        # Add get_RELATED_order() and set_RELATED_order() methods if the model
-        # on the other end of this relation is ordered with respect to this.
-        def matching_gfk(field):
-            return (
-                isinstance(field, GenericForeignKey) and
-                self.content_type_field_name == field.ct_field and
-                self.object_id_field_name == field.fk_field
-            )
+        # Add get_RELATED_order() and set_RELATED_order() to the model this
+        # field belongs to, if the model on the other end of this relation
+        # is ordered with respect to its corresponding GenericForeignKey.
+        if not cls._meta.abstract:
 
-        def make_generic_foreign_order_accessors(related_model, model):
-            if matching_gfk(model._meta.order_with_respect_to):
-                make_foreign_order_accessors(model, related_model)
+            def corresponding_generics(relation, foreign_key):
+                return (
+                    isinstance(foreign_key, GenericForeignKey) and
+                    relation.content_type_field_name == foreign_key.ct_field and
+                    relation.object_id_field_name == foreign_key.fk_field
+                )
 
-        lazy_related_operation(make_generic_foreign_order_accessors, self.model, self.remote_field.model)
+            def make_generic_foreign_order_accessors(related_model, model):
+                if corresponding_generics(self, model._meta.order_with_respect_to):
+                    make_foreign_order_accessors(model, related_model)
+
+            lazy_related_operation(make_generic_foreign_order_accessors, self.model, self.remote_field.model)
 
     def set_attributes_from_rel(self):
         pass

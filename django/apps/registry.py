@@ -372,29 +372,36 @@ class Apps(object):
         The function passed to this method must accept exactly n models as
         arguments, where n=len(model_keys).
         """
-        # If this function depends on more than one model, we recursively turn
-        # it into a chain of functions that accept a single model argument and
-        # pass each in turn to lazy_model_operation.
-        model_key, more_models = model_keys[0], model_keys[1:]
-        if more_models:
-            supplied_fn = function
 
-            def function(model):
-                next_function = partial(supplied_fn, model)
-                # Annotate the function with its field for retrieval in
-                # migrations.state.StateApps.
-                if getattr(supplied_fn, 'keywords', None):
-                    next_function.field = supplied_fn.keywords.get('field')
-                self.lazy_model_operation(next_function, *more_models)
+        # Base case: no arguments, just execute the function.
+        if not model_keys:
+            function()
 
-        # If the model is already loaded, pass it to the function immediately.
-        # Otherwise, delay execution until the class is prepared.
-        try:
-            model_class = self.get_registered_model(*model_key)
-        except LookupError:
-            self._pending_operations[model_key].append(function)
+        # Recursive case. Take the head of model_keys, wait for the
+        # corresponding model class to be imported and registered, then apply
+        # that argument to the supplied function. Pass the resulting partial
+        # to lazy_model_operation along with the remaining model args and
+        # repeat until all models are loaded and all arguments applied.
         else:
-            function(model_class)
+            model_key, more_models = model_keys[0], model_keys[1:]
+
+            # This will be executed once the class corresponding to model_key
+            # has been imported and registered.
+            def apply_next_model(model):
+                next_function = partial(apply_next_model.func, model)
+                self.lazy_model_operation(next_function, *more_models)
+            apply_next_model.func = function
+
+            # If the model has already been imported and registered, partially
+            # apply it to the function now. If not, add it to the list of
+            # pending operations for the model, where it will be executed with
+            # the model class as its sole argument once the model is ready.
+            try:
+                model_class = self.get_registered_model(*model_key)
+            except LookupError:
+                self._pending_operations[model_key].append(apply_next_model)
+            else:
+                apply_next_model(model_class)
 
     def do_pending_operations(self, model):
         """
