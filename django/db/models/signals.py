@@ -3,7 +3,6 @@ from functools import partial
 from django.apps import apps
 from django.db.models.utils import make_model_tuple
 from django.dispatch import Signal
-from django.utils import six
 
 
 class_prepared = Signal(providing_args=["class"])
