@@ -383,23 +383,25 @@ class Apps(object):
         # to lazy_model_operation along with the remaining model args and
         # repeat until all models are loaded and all arguments applied.
         else:
-            model_key, more_models = model_keys[0], model_keys[1:]
 
-            # This will be executed once the class corresponding to model_key
-            # has been imported and registered.
+            # This will be executed once the class corresponding to next_model
+            # has been imported and registered. We give it a `func` attribute
+            # to provide duck-type compatibility with partials.
             def apply_next_model(model):
                 next_function = partial(apply_next_model.func, model)
                 self.lazy_model_operation(next_function, *more_models)
             apply_next_model.func = function
+
+            next_model, more_models = model_keys[0], model_keys[1:]
 
             # If the model has already been imported and registered, partially
             # apply it to the function now. If not, add it to the list of
             # pending operations for the model, where it will be executed with
             # the model class as its sole argument once the model is ready.
             try:
-                model_class = self.get_registered_model(*model_key)
+                model_class = self.get_registered_model(*next_model)
             except LookupError:
-                self._pending_operations[model_key].append(apply_next_model)
+                self._pending_operations[next_model].append(apply_next_model)
             else:
                 apply_next_model(model_class)
 
@@ -409,7 +411,7 @@ class Apps(object):
         it. This is called at the very end of `Apps.register_model()`.
         """
         key = model._meta.app_label, model._meta.model_name
-        for function in self._pending_operations.pop(key, []):
-            function(model)
+        for operation in self._pending_operations.pop(key, []):
+            operation(model)
 
 apps = Apps(installed_apps=None)
